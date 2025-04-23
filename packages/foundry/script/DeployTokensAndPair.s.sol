@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "forge-std/Script.sol";
 import "../contracts/UniswapV2Factory.sol";
 import "../contracts/UniswapV2ERC20.sol";
-import "../contracts/mocks/ERC20Mock.sol";
+import {ERC20Mock} from "../contracts/mocks/ERC20Mock.sol";
 
 contract DeployTokensAndPair is Script {
     function run() external {

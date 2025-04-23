@@ -6,7 +6,7 @@ import UniswapV2FactoryABI from "../../lib/abi/UniswapV2Factory.json";
 import UniswapV2PairABI from "../../lib/abi/UniswapV2Pair.json";
 import { ethers } from "ethers";
 
-const FACTORY_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+const FACTORY_ADDRESS = "0x0165878A594ca255338adfa4d48449f69242Eb8F";
 
 export default function UniswapPage() {
   const [pools, setPools] = useState<{ address: string; name: string }[]>([]);
