@@ -17,15 +17,24 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     let output = "";
+    const systemPrompt = `You are a smart contract assistant for a Uniswap interface. Convert user input into structured JSON.
+Return ONLY a valid JSON object.
+
+Example input: swap 10 USDC for ETH
+Example output:
+{
+  "action": "swap",
+  "tokenIn": "USDC",
+  "tokenOut": "ETH",
+  "amount": 10
+}`;
 
     if (model === "openai") {
       const completion = await openai.chat.completions.create({
         model: "gpt-4o",
         messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
+          { role: "system", content: systemPrompt },
+          { role: "user", content: prompt },
         ],
         temperature: 0,
       });
@@ -38,8 +47,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "mistral", // default model for OSS
-          prompt,
+          model: "mistral",
+          prompt: `${systemPrompt}\nUser input: ${prompt}`,
         }),
       });
 
@@ -48,20 +57,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       let rawOutput = "";
 
       if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          rawOutput += decoder.decode(value, { stream: true });
+        let done = false;
+        while (!done) {
+          const { value, done: doneReading } = await reader.read();
+          done = doneReading;
+          if (value) {
+            rawOutput += decoder.decode(value, { stream: true });
+          }
         }
       }
 
-      const lines = rawOutput.trim().split("\n");
+      const lines = rawOutput
+        .split("\n")
+        .map(line => line.trim())
+        .filter(line => line.length > 0);
+
       const merged = lines
         .map(line => {
           try {
             const parsed = JSON.parse(line);
             return parsed.response || "";
-          } catch {
+          } catch (err) {
+            console.warn("Failed to parse OSS response line:", err);
             return "";
           }
         })
@@ -72,7 +89,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(400).json({ error: "Invalid OSS model setup." });
     }
 
-    res.status(200).json({ output });
+    // Attempt to parse structured output
+    let structured: any = null;
+    try {
+      structured = JSON.parse(output);
+    } catch (err) {
+      console.warn("LLM returned invalid JSON:", err);
+    }
+
+    res.status(200).json({ output, structured });
   } catch (err) {
     console.error("LLM handler error:", err);
     res.status(500).json({ error: "Failed to process prompt." });
