@@ -35,6 +35,7 @@ export default function TaskEvaluationPage() {
   const [loadingIndex, setLoadingIndex] = useState<number | null>(null);
   const [newPrompt, setNewPrompt] = useState("");
   const [newExpected, setNewExpected] = useState("");
+  const [ossUrl, setOssUrl] = useState("");
 
   async function runTest(index: number, prompt: string, model: "openai" | "oss") {
     setLoadingIndex(index);
@@ -46,8 +47,7 @@ export default function TaskEvaluationPage() {
         body: JSON.stringify({
           prompt,
           model,
-          // Add ossUrl if your API needs it for the 'oss' model, like in UniswapPage
-          // ossUrl: model === 'oss' ? 'YOUR_OSS_URL_HERE' : undefined,
+          ossUrl, // 🔥 send it here
         }),
       });
       const data = await res.json();
@@ -107,6 +107,15 @@ export default function TaskEvaluationPage() {
             ➕ Add
           </button>
         </div>
+        <div className="flex gap-2 items-center">
+          <label className="w-32 font-medium">OSS Model URL:</label>
+          <input
+            className="border px-2 py-1 rounded w-full"
+            placeholder="https://your-oss-model.com/api"
+            value={ossUrl}
+            onChange={e => setOssUrl(e.target.value)}
+          />
+        </div>
       </div>
       {/* Evaluation Results Table */}
       <div className="mt-6">
@@ -116,7 +125,7 @@ export default function TaskEvaluationPage() {
           {" "}
           {/* Basic table styling */}
           <thead>
-            <tr className="bg-gray-200">
+            <tr className="bg-gray-900">
               {" "}
               {/* Header background */}
               <th className="border px-4 py-2 text-left">#</th> {/* Cell styling */}
