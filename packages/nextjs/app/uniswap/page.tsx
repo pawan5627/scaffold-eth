@@ -5,8 +5,20 @@ import ERC20ABI from "../../lib/abi/ERC20.json";
 import UniswapV2FactoryABI from "../../lib/abi/UniswapV2Factory.json";
 import UniswapV2PairABI from "../../lib/abi/UniswapV2Pair.json";
 import { ethers } from "ethers";
+import {
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 const FACTORY_ADDRESS = "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82";
+const SWAP_EVENT_SIGNATURE = "Swap(address,uint256,uint256,uint256,uint256,address)";
 
 export default function UniswapPage() {
   const [pools, setPools] = useState<{ address: string; name: string }[]>([]);
@@ -16,6 +28,10 @@ export default function UniswapPage() {
   const [token0Symbol, setToken0Symbol] = useState("");
   const [token1Symbol, setToken1Symbol] = useState("");
   const [removeAmount, setRemoveAmount] = useState("");
+  const [swapAmount, setSwapAmount] = useState("");
+  const [swapDirection, setSwapDirection] = useState<"0to1" | "1to0">("0to1");
+  const [reserves, setReserves] = useState<{ reserve0: bigint; reserve1: bigint } | null>(null);
+  const [priceHistory, setPriceHistory] = useState<{ x: number; y: number }[]>([]);
 
   useEffect(() => {
     const fetchPools = async () => {
@@ -67,9 +83,52 @@ export default function UniswapPage() {
     const token1Contract = new ethers.Contract(token1, ERC20ABI, signer);
     const symbol0 = await token0Contract.symbol();
     const symbol1 = await token1Contract.symbol();
+    const reserves = await pair.getReserves();
+    await fetchSwapEvents(address);
+
+    setReserves({ reserve0: reserves[0], reserve1: reserves[1] });
+
     setToken0Symbol(symbol0);
     setToken1Symbol(symbol1);
   };
+
+  async function fetchSwapEvents(pairAddress: string) {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const iface = new ethers.Interface(UniswapV2PairABI);
+
+      const logs = await provider.send("eth_getLogs", [
+        {
+          address: pairAddress,
+          fromBlock: "0x0",
+          toBlock: "latest",
+          topics: [ethers.id(SWAP_EVENT_SIGNATURE)],
+        },
+      ]);
+
+      const parsed = logs.map((log: ethers.Log) => iface.parseLog(log));
+
+      const prices = parsed.map((e: ethers.LogDescription, i: number) => {
+        const { amount0In, amount1In, amount0Out, amount1Out } = e.args as unknown as {
+          amount0In: bigint;
+          amount1In: bigint;
+          amount0Out: bigint;
+          amount1Out: bigint;
+        };
+
+        const input = amount0In > 0n ? amount0In : amount1In;
+        const output = amount0Out > 0n ? amount0Out : amount1Out;
+
+        const price = Number(output) / Number(input);
+
+        return { x: i + 1, y: price };
+      });
+
+      setPriceHistory(prices);
+    } catch (err) {
+      console.error("Swap log fetch failed:", err);
+    }
+  }
 
   const handleAddLiquidity = async () => {
     try {
@@ -133,6 +192,52 @@ export default function UniswapPage() {
     } catch (err) {
       console.error("Remove liquidity failed:", err);
       alert("❌ Liquidity removal failed.");
+    }
+  }
+  async function handleSwap() {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+      const user = await signer.getAddress();
+
+      const pair = new ethers.Contract(selectedPair, UniswapV2PairABI, signer);
+
+      const token0 = new ethers.Contract(await pair.token0(), ERC20ABI, signer);
+      const token1 = new ethers.Contract(await pair.token1(), ERC20ABI, signer);
+
+      const amountIn = ethers.parseUnits(swapAmount, 18);
+
+      // Determine direction
+      const inputToken = swapDirection === "0to1" ? token0 : token1;
+
+      const reserves = await pair.getReserves();
+      const reserveIn = swapDirection === "0to1" ? reserves[0] : reserves[1];
+      const reserveOut = swapDirection === "0to1" ? reserves[1] : reserves[0];
+
+      // Uniswap formula with 0.3% fee
+      const amountInWithFee = amountIn * 997n;
+      const numerator = amountInWithFee * reserveOut;
+      const denominator = reserveIn * 1000n + amountInWithFee;
+      const amountOut = numerator / denominator;
+
+      const amount0Out = swapDirection === "0to1" ? 0n : amountOut;
+      const amount1Out = swapDirection === "0to1" ? amountOut : 0n;
+
+      // Approve token
+      await inputToken.approve(pair.target, amountIn);
+
+      // Transfer input token to pair
+      await inputToken.transfer(pair.target, amountIn);
+
+      // Call swap
+      const tx = await pair.swap(amount0Out, amount1Out, user, "0x");
+      await tx.wait();
+      await fetchSwapEvents(selectedPair);
+
+      alert(`✅ Swapped! Received ${ethers.formatUnits(amountOut, 18)} tokens`);
+    } catch (err) {
+      console.error("Swap failed:", err);
+      alert("❌ Swap failed. Check console.");
     }
   }
 
@@ -200,9 +305,103 @@ export default function UniswapPage() {
                 Burn LP Tokens
               </button>
             </div>
+            <div className="mt-10 border-t pt-6">
+              <h2 className="text-xl font-semibold mb-2">Swap Tokens</h2>
+
+              <div className="mb-4">
+                <label className="block mb-1 font-medium">Swap Direction:</label>
+                <select
+                  className="border px-2 py-1 rounded w-full"
+                  value={swapDirection}
+                  onChange={e => setSwapDirection(e.target.value as "0to1" | "1to0")}
+                >
+                  <option value="0to1">
+                    {token0Symbol} → {token1Symbol}
+                  </option>
+                  <option value="1to0">
+                    {token1Symbol} → {token0Symbol}
+                  </option>
+                </select>
+              </div>
+
+              <div className="mb-4">
+                <label className="block font-medium mb-1">Input Amount:</label>
+                <input
+                  type="text"
+                  value={swapAmount}
+                  onChange={e => setSwapAmount(e.target.value)}
+                  className="border px-2 py-1 rounded w-full"
+                />
+              </div>
+
+              <button onClick={handleSwap} className="bg-green-600 text-white px-4 py-2 rounded w-full">
+                Swap
+              </button>
+            </div>
+            {reserves && (
+              <div className="mt-10">
+                <h2 className="text-xl font-semibold mb-4">📈 Reserve Curve</h2>
+                <ResponsiveContainer width="100%" height={400}>
+                  <ScatterChart>
+                    <CartesianGrid stroke="#ccc" />
+                    <XAxis type="number" dataKey="x" />
+                    <YAxis type="number" dataKey="y" />
+                    <Tooltip />
+
+                    {/* Curve */}
+                    <Line
+                      type="monotone"
+                      data={generateCurveData(reserves.reserve0 * reserves.reserve1)}
+                      dataKey="y"
+                      stroke="#8884d8"
+                      dot={false}
+                    />
+
+                    {/* Current point */}
+                    <Scatter
+                      data={[
+                        {
+                          x: Number(ethers.formatUnits(reserves.reserve0, 18)),
+                          y: Number(ethers.formatUnits(reserves.reserve1, 18)),
+                        },
+                      ]}
+                      fill="#FF0000"
+                    />
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+            {priceHistory.length > 0 && (
+              <div className="mt-10">
+                <h2 className="text-xl font-semibold mb-4">📊 Swap Price History</h2>
+                <ResponsiveContainer width="100%" height={300}>
+                  <LineChart data={priceHistory}>
+                    <XAxis dataKey="x" label={{ value: "Swap #", position: "insideBottomRight", offset: -5 }} />
+                    <YAxis domain={["auto", "auto"]} label={{ value: "Price", angle: -90, position: "insideLeft" }} />
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="y" stroke="#82ca9d" dot />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            )}
           </div>
         )}
       </div>
     </div>
   );
+}
+function generateCurveData(k: bigint): { x: number; y: number }[] {
+  const points: { x: number; y: number }[] = [];
+  const min = 1;
+  const max = 100;
+
+  for (let x = min; x <= max; x += 1) {
+    const y = Number(k) / x;
+    if (y > 0 && y < 100000) {
+      points.push({ x, y });
+    }
+  }
+
+  return points;
 }
