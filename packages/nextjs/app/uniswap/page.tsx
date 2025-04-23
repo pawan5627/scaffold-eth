@@ -72,24 +72,7 @@ export default function UniswapPage() {
   const [modelChoice, setModelChoice] = useState<"openai" | "oss">("openai");
   const [ossModelUrl, setOssModelUrl] = useState("");
   const [nlOutput, setNlOutput] = useState("");
-  useEffect(() => {
-    if (!reserves) return;
-
-    const ratio = Number(reserves.reserve1) / Number(reserves.reserve0);
-
-    // When amount0 is edited, sync amount1
-    if (amount0 && document.activeElement?.id === "amount0") {
-      const calculated = parseFloat(amount0) * ratio;
-      setAmount1(calculated ? calculated.toFixed(6) : "");
-    }
-
-    // When amount1 is edited, sync amount0
-    if (amount1 && document.activeElement?.id === "amount1") {
-      const inverseRatio = Number(reserves.reserve0) / Number(reserves.reserve1);
-      const calculated = parseFloat(amount1) * inverseRatio;
-      setAmount0(calculated ? calculated.toFixed(6) : "");
-    }
-  }, [amount0, amount1, reserves]);
+  const [activeField, setActiveField] = useState<"amount0" | "amount1" | null>(null);
 
   useEffect(() => {
     const fetchPools = async () => {
@@ -129,6 +112,24 @@ export default function UniswapPage() {
 
     fetchPools();
   }, []);
+
+  useEffect(() => {
+    if (!reserves) return;
+
+    const ratio = Number(reserves.reserve1) / Number(reserves.reserve0);
+    const inverseRatio = Number(reserves.reserve0) / Number(reserves.reserve1);
+
+    if (activeField === "amount0" && amount0) {
+      const calculated = parseFloat(amount0) * ratio;
+      setAmount1(calculated ? calculated.toFixed(6) : "");
+    }
+
+    if (activeField === "amount1" && amount1) {
+      const calculated = parseFloat(amount1) * inverseRatio;
+      setAmount0(calculated ? calculated.toFixed(6) : "");
+    }
+  }, [amount0, amount1, reserves, activeField]);
+
   async function handleNaturalLanguageSubmit() {
     try {
       const res = await fetch("/api/llm", {
@@ -531,6 +532,8 @@ export default function UniswapPage() {
                 type="text"
                 value={amount0}
                 onChange={e => setAmount0(e.target.value)}
+                onFocus={() => setActiveField("amount0")}
+                onBlur={() => setActiveField(null)}
                 className="border px-2 py-1 rounded w-full"
               />
             </div>
@@ -540,6 +543,8 @@ export default function UniswapPage() {
                 id="amount1"
                 type="text"
                 value={amount1}
+                onFocus={() => setActiveField("amount1")}
+                onBlur={() => setActiveField(null)}
                 onChange={e => setAmount1(e.target.value)}
                 className="border px-2 py-1 rounded w-full"
               />
