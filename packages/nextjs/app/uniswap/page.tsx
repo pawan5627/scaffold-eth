@@ -267,7 +267,7 @@ export default function UniswapPage() {
   return (
     <div className="p-10">
       <h1 className="text-3xl font-bold mb-6">🦄 Uniswap v2 Web3 UI</h1>
-      <div className="mt-10 p-4 border rounded bg-gray-50">
+      <div className="mt-10 p-4 border rounded ">
         <h2 className="text-xl font-semibold mb-2">💬 Natural Language Commands</h2>
 
         <textarea
@@ -304,7 +304,7 @@ export default function UniswapPage() {
         </button>
 
         {nlOutput && (
-          <div className="mt-4 p-3 bg-white border rounded">
+          <div className="mt-4 p-3 bg-black border rounded">
             <strong>Model Response:</strong>
             <pre className="whitespace-pre-wrap">{nlOutput}</pre>
           </div>
