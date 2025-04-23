@@ -23,12 +23,21 @@ contract Deploy is Script {
             tokens[2 * i] = new ERC20Mock(names[i], symbols[i], 18);
             tokens[2 * i + 1] = new ERC20Mock(string.concat(names[i], "X"), string.concat(symbols[i], "X"), 18);
         }
+        address testUser = address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266); // or your frontend wallet
 
+for (uint i = 0; i < 12; i++) {
+    tokens[i].transfer(testUser, 100_000 ether);
+}
+for (uint i = 0; i < 12; i++) {
+    console2.log("Token", i, ":", address(tokens[i]));
+}
         // Create pairs
-        for (uint i = 0; i < 6; i++) {
-            address pair = factory.createPair(address(tokens[2 * i]), address(tokens[2 * i + 1]));
-            console2.log("Pair", i + 1, ":", pair);
-        }
+for (uint i = 0; i < 6; i++) {
+  for (uint j = i + 1; j < 6; j++) {
+    factory.createPair(address(tokens[2 * i]), address(tokens[2 * j]));
+  }
+}
+
 
         vm.stopBroadcast();
     }

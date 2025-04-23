@@ -17,8 +17,44 @@ import {
   YAxis,
 } from "recharts";
 
-const FACTORY_ADDRESS = "0x0DCd1Bf9A1b36cE34237eEaFef220932846BCD82";
+type StructuredCommand =
+  | {
+      action: "swap";
+      tokenIn: string;
+      tokenOut: string;
+      amount: number;
+    }
+  | {
+      action: "deposit";
+      amounts: { token: string; amount: number }[];
+    }
+  | {
+      action: "redeem";
+      pool: string[];
+    }
+  | {
+      action: "query";
+      type: "reserves" | "swaps" | "volume";
+      pool: string[];
+    };
+
+const FACTORY_ADDRESS = "0xDDEec1224034F4A68A2697eF13379a014fa60261";
 const SWAP_EVENT_SIGNATURE = "Swap(address,uint256,uint256,uint256,uint256,address)";
+const TOKEN_MAP: Record<string, string> = {
+  A: "0x199c27B10a195ee79e02d50846e59A4aFB82CAD1",
+  AX: "0x3c705dB336C81c7FEFC5746e283aB2c0781A4B7b",
+  B: "0x1dBDba33dfA381bCC89FCe74DFF69Aa96B53b503",
+  BX: "0x7798A400cBe0Ca14a7D614ECa1CD15adE5055413",
+  G: "0x7B3Be2dDDdDf9A0a3fE1DC57B98980F662C3a422",
+  GX: "0x90352F820342f8BE0012848bCB8aBd37877d7ec2",
+  D: "0x82B642D9deDb3Ad19b8E99FF3792A49d4d9d85Bf",
+  DX: "0x9Fe28b717aDE38BA99E32c45BE3Ee4291f2E338B",
+  E: "0x650aEF4b63095e4EDe581BC79CdeA927e3ba553A",
+  EX: "0x87F850cbC2cFfac086F20d0d7307E12d06fA2127",
+  Z: "0xDeBD0Bc00932E8b5bEfF65053989B0687c894b5F",
+  ZX: "0xB0748F8B73C53aB94b3DD1109f3427B7Bb2907F5",
+  // add all test tokens used in your pools
+};
 
 export default function UniswapPage() {
   const [pools, setPools] = useState<{ address: string; name: string }[]>([]);
@@ -32,6 +68,10 @@ export default function UniswapPage() {
   const [swapDirection, setSwapDirection] = useState<"0to1" | "1to0">("0to1");
   const [reserves, setReserves] = useState<{ reserve0: bigint; reserve1: bigint } | null>(null);
   const [priceHistory, setPriceHistory] = useState<{ x: number; y: number }[]>([]);
+  const [nlInput, setNlInput] = useState("");
+  const [modelChoice, setModelChoice] = useState<"openai" | "oss">("openai");
+  const [ossModelUrl, setOssModelUrl] = useState("");
+  const [nlOutput, setNlOutput] = useState("");
 
   useEffect(() => {
     const fetchPools = async () => {
@@ -71,6 +111,150 @@ export default function UniswapPage() {
 
     fetchPools();
   }, []);
+  async function handleNaturalLanguageSubmit() {
+    try {
+      const res = await fetch("/api/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: nlInput,
+          model: modelChoice,
+          ossUrl: ossModelUrl,
+        }),
+      });
+
+      const data = await res.json();
+      setNlOutput(data.output || JSON.stringify(data));
+      if (data.structured?.action) {
+        handleStructuredAction(data.structured);
+      }
+    } catch (err) {
+      console.error("NL processing error:", err);
+      setNlOutput("❌ Failed to process prompt.");
+    }
+  }
+
+  async function handleStructuredAction(structured: StructuredCommand) {
+    const provider = new ethers.BrowserProvider(window.ethereum);
+    const signer = await provider.getSigner();
+
+    const factory = new ethers.Contract(FACTORY_ADDRESS, UniswapV2FactoryABI, signer);
+
+    switch (structured.action) {
+      case "swap": {
+        const tokenInAddr = TOKEN_MAP[structured.tokenIn];
+        const tokenOutAddr = TOKEN_MAP[structured.tokenOut];
+
+        if (!tokenInAddr || !tokenOutAddr) {
+          alert("❌ Unknown token symbol");
+          return;
+        }
+
+        const pairAddress = await factory.getPair(tokenInAddr, tokenOutAddr);
+        const pair = new ethers.Contract(pairAddress, UniswapV2PairABI, signer);
+
+        const tokenIn = new ethers.Contract(tokenInAddr, ERC20ABI, signer);
+        const amountIn = ethers.parseUnits(structured.amount.toString(), 18);
+
+        await tokenIn.approve(pair.target, amountIn);
+        await tokenIn.transfer(pair.target, amountIn);
+
+        const reserves = await pair.getReserves();
+        const isToken0 = (await pair.token0()).toLowerCase() === tokenInAddr.toLowerCase();
+        const reserveIn = isToken0 ? reserves[0] : reserves[1];
+        const reserveOut = isToken0 ? reserves[1] : reserves[0];
+
+        const amountInWithFee = amountIn * 997n;
+        const numerator = amountInWithFee * reserveOut;
+        const denominator = reserveIn * 1000n + amountInWithFee;
+        const amountOut = numerator / denominator;
+
+        const amount0Out = isToken0 ? 0n : amountOut;
+        const amount1Out = isToken0 ? amountOut : 0n;
+
+        const tx = await pair.swap(amount0Out, amount1Out, await signer.getAddress(), "0x");
+        await tx.wait();
+
+        alert(`✅ Swapped ${structured.amount} ${structured.tokenIn} → ${structured.tokenOut}`);
+        break;
+      }
+
+      case "deposit": {
+        for (const { token, amount } of structured.amounts) {
+          const tokenAddr = TOKEN_MAP[token];
+          if (!tokenAddr) {
+            alert(`❌ Unknown token: ${token}`);
+            return;
+          }
+
+          const tokenContract = new ethers.Contract(tokenAddr, ERC20ABI, signer);
+          const amountIn = ethers.parseUnits(amount.toString(), 18);
+
+          await tokenContract.approve(factory.target, amountIn);
+          await tokenContract.transfer(factory.target, amountIn);
+        }
+
+        alert(`✅ Would call mint() on appropriate pair (manually implement if needed).`);
+        break;
+      }
+
+      case "redeem": {
+        const [token0Sym, token1Sym] = structured.pool;
+        const token0 = TOKEN_MAP[token0Sym];
+        const token1 = TOKEN_MAP[token1Sym];
+
+        if (!token0 || !token1) {
+          alert("❌ Unknown token symbols for pool");
+          return;
+        }
+
+        const pairAddr = await factory.getPair(token0, token1);
+        if (pairAddr === ethers.ZeroAddress) {
+          alert("❌ No pair exists for that pool");
+          return;
+        }
+
+        const pair = new ethers.Contract(pairAddr, UniswapV2PairABI, signer);
+        const user = await signer.getAddress();
+        const lpBalance = await pair.balanceOf(user);
+
+        await pair.approve(pair.target, lpBalance);
+        await pair.transfer(pair.target, lpBalance);
+
+        const tx = await pair.burn(user);
+        await tx.wait();
+
+        alert("✅ Liquidity removed!");
+        break;
+      }
+
+      case "query": {
+        const [token0Sym, token1Sym] = structured.pool;
+        const token0 = TOKEN_MAP[token0Sym];
+        const token1 = TOKEN_MAP[token1Sym];
+
+        if (!token0 || !token1) {
+          alert("❌ Unknown token symbols for query");
+          return;
+        }
+
+        const pairAddr = await factory.getPair(token0, token1);
+        if (pairAddr === ethers.ZeroAddress) {
+          alert("❌ No pool exists for that pair");
+          return;
+        }
+
+        const pair = new ethers.Contract(pairAddr, UniswapV2PairABI, signer);
+        const [reserve0, reserve1] = await pair.getReserves();
+
+        alert(`📊 Reserves for ${token0Sym}/${token1Sym}:\n${reserve0} / ${reserve1}`);
+        break;
+      }
+
+      default:
+        alert("❌ Unknown action type");
+    }
+  }
 
   const handleSelectPair = async (address: string) => {
     setSelectedPair(address);
@@ -132,6 +316,11 @@ export default function UniswapPage() {
 
   const handleAddLiquidity = async () => {
     try {
+      if (!selectedPair || selectedPair === "") {
+        alert("Please select a valid pool before proceeding.");
+        return;
+      }
+
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
@@ -165,6 +354,11 @@ export default function UniswapPage() {
   };
   async function handleRemoveLiquidity() {
     try {
+      if (!selectedPair || selectedPair === "") {
+        alert("Please select a valid pool before proceeding.");
+        return;
+      }
+
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
 
@@ -196,6 +390,11 @@ export default function UniswapPage() {
   }
   async function handleSwap() {
     try {
+      if (!selectedPair || selectedPair === "") {
+        alert("Please select a valid pool before proceeding.");
+        return;
+      }
+
       const provider = new ethers.BrowserProvider(window.ethereum);
       const signer = await provider.getSigner();
       const user = await signer.getAddress();
@@ -244,6 +443,49 @@ export default function UniswapPage() {
   return (
     <div className="p-10">
       <h1 className="text-3xl font-bold mb-6">🦄 Uniswap v2 Web3 UI</h1>
+      <div className="mt-10 p-4 border rounded ">
+        <h2 className="text-xl font-semibold mb-2">💬 Natural Language Commands</h2>
+
+        <textarea
+          className="border p-2 w-full rounded mb-2"
+          rows={3}
+          placeholder='e.g. "swap 10 USDC for ETH"'
+          value={nlInput}
+          onChange={e => setNlInput(e.target.value)}
+        />
+
+        <div className="flex flex-col gap-2 mb-2">
+          <label className="font-medium">Choose Model:</label>
+          <select
+            className="border p-2 rounded"
+            value={modelChoice}
+            onChange={e => setModelChoice(e.target.value as "openai" | "oss")}
+          >
+            <option value="openai">OpenAI</option>
+            <option value="oss">Open Source (Custom URL)</option>
+          </select>
+
+          {modelChoice === "oss" && (
+            <input
+              className="border p-2 rounded"
+              placeholder="Enter OSS model endpoint URL"
+              value={ossModelUrl}
+              onChange={e => setOssModelUrl(e.target.value)}
+            />
+          )}
+        </div>
+
+        <button className="bg-purple-600 text-white px-4 py-2 rounded" onClick={handleNaturalLanguageSubmit}>
+          ✨ Submit
+        </button>
+
+        {nlOutput && (
+          <div className="mt-4 p-3 bg-black border rounded">
+            <strong>Model Response:</strong>
+            <pre className="whitespace-pre-wrap">{nlOutput}</pre>
+          </div>
+        )}
+      </div>
 
       <div className="space-y-4">
         <div>
