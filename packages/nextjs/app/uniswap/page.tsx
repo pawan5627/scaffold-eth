@@ -111,7 +111,6 @@ export default function UniswapPage() {
 
     fetchPools();
   }, []);
-
   async function handleNaturalLanguageSubmit() {
     try {
       const res = await fetch("/api/llm", {
@@ -510,7 +509,6 @@ export default function UniswapPage() {
             <div>
               <label className="block font-medium">Amount {token0Symbol}:</label>
               <input
-                id="amount0"
                 type="text"
                 value={amount0}
                 onChange={e => setAmount0(e.target.value)}
@@ -520,7 +518,6 @@ export default function UniswapPage() {
             <div>
               <label className="block font-medium">Amount {token1Symbol}:</label>
               <input
-                id="amount1"
                 type="text"
                 value={amount1}
                 onChange={e => setAmount1(e.target.value)}
