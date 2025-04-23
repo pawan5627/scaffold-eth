@@ -5,24 +5,30 @@ import "forge-std/Script.sol";
 import "../contracts/UniswapV2Factory.sol";
 import {ERC20Mock} from "../contracts/mocks/ERC20Mock.sol";
 
+
 contract Deploy is Script {
     function run() external {
         vm.startBroadcast();
 
-        // Deploy test tokens
-        ERC20Mock tokenA = new ERC20Mock("TestA", "TKA", 18);
-        ERC20Mock tokenB = new ERC20Mock("TestB", "TKB", 18);
-
-        // Deploy the factory
+        // Deploy factory
         UniswapV2Factory factory = new UniswapV2Factory(msg.sender);
-
-        // Create a pair
-        address pair = factory.createPair(address(tokenA), address(tokenB));
-
         console2.log("Factory:", address(factory));
-        console2.log("Token A:", address(tokenA));
-        console2.log("Token B:", address(tokenB));
-        console2.log("Pair:", pair);
+
+        // Create tokens
+        ERC20Mock[12] memory tokens;
+        string[6] memory names = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"];
+        string[6] memory symbols = ["A", "B", "G", "D", "E", "Z"];
+
+        for (uint i = 0; i < 6; i++) {
+            tokens[2 * i] = new ERC20Mock(names[i], symbols[i], 18);
+            tokens[2 * i + 1] = new ERC20Mock(string.concat(names[i], "X"), string.concat(symbols[i], "X"), 18);
+        }
+
+        // Create pairs
+        for (uint i = 0; i < 6; i++) {
+            address pair = factory.createPair(address(tokens[2 * i]), address(tokens[2 * i + 1]));
+            console2.log("Pair", i + 1, ":", pair);
+        }
 
         vm.stopBroadcast();
     }
