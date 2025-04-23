@@ -11,6 +11,9 @@ const Home: NextPage = () => {
 
   return (
     <>
+      <Link href="/uniswap" className="text-blue-500 underline">
+        Go to Uniswap v2 UI
+      </Link>
       <div className="flex items-center flex-col flex-grow pt-10">
         <div className="px-5">
           <h1 className="text-center">
