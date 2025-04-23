@@ -15,6 +15,7 @@ export default function UniswapPage() {
   const [amount1, setAmount1] = useState("");
   const [token0Symbol, setToken0Symbol] = useState("");
   const [token1Symbol, setToken1Symbol] = useState("");
+  const [removeAmount, setRemoveAmount] = useState("");
 
   useEffect(() => {
     const fetchPools = async () => {
@@ -103,6 +104,37 @@ export default function UniswapPage() {
       alert("❌ Liquidity addition failed.");
     }
   };
+  async function handleRemoveLiquidity() {
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const signer = await provider.getSigner();
+
+      const pair = new ethers.Contract(selectedPair, UniswapV2PairABI, signer);
+
+      const lpAmount = ethers.parseUnits(removeAmount, 18);
+      const balance = await pair.balanceOf(await signer.getAddress());
+
+      if (lpAmount > balance) {
+        alert("You don't have that many LP tokens.");
+        return;
+      }
+
+      // Approve pair to spend LP tokens
+      await pair.approve(pair.target, lpAmount);
+
+      // Transfer LP tokens to the pair contract
+      await pair.transfer(pair.target, lpAmount);
+
+      // Call burn
+      const tx = await pair.burn(await signer.getAddress());
+      await tx.wait();
+
+      alert("✅ Liquidity removed!");
+    } catch (err) {
+      console.error("Remove liquidity failed:", err);
+      alert("❌ Liquidity removal failed.");
+    }
+  }
 
   return (
     <div className="p-10">
@@ -149,6 +181,25 @@ export default function UniswapPage() {
             <button onClick={handleAddLiquidity} className="bg-blue-600 text-white px-4 py-2 rounded w-full">
               Approve & Add Liquidity
             </button>
+            <div className="mt-10 border-t pt-6">
+              <h2 className="text-xl font-semibold mb-2">Remove Liquidity</h2>
+
+              <label className="block font-medium mb-1">LP Token Amount:</label>
+              <input
+                type="text"
+                value={removeAmount}
+                onChange={e => setRemoveAmount(e.target.value)}
+                className="border px-2 py-1 rounded w-full mb-4"
+              />
+
+              <button
+                className="bg-red-600 text-white px-4 py-2 rounded w-full"
+                onClick={handleRemoveLiquidity}
+                disabled={!selectedPair}
+              >
+                Burn LP Tokens
+              </button>
+            </div>
           </div>
         )}
       </div>
