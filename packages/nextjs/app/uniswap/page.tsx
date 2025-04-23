@@ -41,18 +41,18 @@ type StructuredCommand =
 const FACTORY_ADDRESS = "0xDDEec1224034F4A68A2697eF13379a014fa60261";
 const SWAP_EVENT_SIGNATURE = "Swap(address,uint256,uint256,uint256,uint256,address)";
 const TOKEN_MAP: Record<string, string> = {
-  A: "0x199c27B10a195ee79e02d50846e59A4aFB82CAD1",
-  AX: "0x3c705dB336C81c7FEFC5746e283aB2c0781A4B7b",
-  B: "0x1dBDba33dfA381bCC89FCe74DFF69Aa96B53b503",
-  BX: "0x7798A400cBe0Ca14a7D614ECa1CD15adE5055413",
-  G: "0x7B3Be2dDDdDf9A0a3fE1DC57B98980F662C3a422",
-  GX: "0x90352F820342f8BE0012848bCB8aBd37877d7ec2",
-  D: "0x82B642D9deDb3Ad19b8E99FF3792A49d4d9d85Bf",
-  DX: "0x9Fe28b717aDE38BA99E32c45BE3Ee4291f2E338B",
-  E: "0x650aEF4b63095e4EDe581BC79CdeA927e3ba553A",
-  EX: "0x87F850cbC2cFfac086F20d0d7307E12d06fA2127",
-  Z: "0xDeBD0Bc00932E8b5bEfF65053989B0687c894b5F",
-  ZX: "0xB0748F8B73C53aB94b3DD1109f3427B7Bb2907F5",
+  BTC: "0x199c27B10a195ee79e02d50846e59A4aFB82CAD1",
+  ETH: "0x3c705dB336C81c7FEFC5746e283aB2c0781A4B7b",
+  USDT: "0x1dBDba33dfA381bCC89FCe74DFF69Aa96B53b503",
+  XRP: "0x7798A400cBe0Ca14a7D614ECa1CD15adE5055413",
+  BNB: "0x7B3Be2dDDdDf9A0a3fE1DC57B98980F662C3a422",
+  SOL: "0x90352F820342f8BE0012848bCB8aBd37877d7ec2",
+  USDC: "0x82B642D9deDb3Ad19b8E99FF3792A49d4d9d85Bf",
+  DOGE: "0x9Fe28b717aDE38BA99E32c45BE3Ee4291f2E338B",
+  ADA: "0x650aEF4b63095e4EDe581BC79CdeA927e3ba553A",
+  TRX: "0x87F850cbC2cFfac086F20d0d7307E12d06fA2127",
+  LINK: "0xDeBD0Bc00932E8b5bEfF65053989B0687c894b5F",
+  SUI: "0xB0748F8B73C53aB94b3DD1109f3427B7Bb2907F5",
   // add all test tokens used in your pools
 };
 
@@ -72,6 +72,24 @@ export default function UniswapPage() {
   const [modelChoice, setModelChoice] = useState<"openai" | "oss">("openai");
   const [ossModelUrl, setOssModelUrl] = useState("");
   const [nlOutput, setNlOutput] = useState("");
+  useEffect(() => {
+    if (!reserves) return;
+
+    const ratio = Number(reserves.reserve1) / Number(reserves.reserve0);
+
+    // When amount0 is edited, sync amount1
+    if (amount0 && document.activeElement?.id === "amount0") {
+      const calculated = parseFloat(amount0) * ratio;
+      setAmount1(calculated ? calculated.toFixed(6) : "");
+    }
+
+    // When amount1 is edited, sync amount0
+    if (amount1 && document.activeElement?.id === "amount1") {
+      const inverseRatio = Number(reserves.reserve0) / Number(reserves.reserve1);
+      const calculated = parseFloat(amount1) * inverseRatio;
+      setAmount0(calculated ? calculated.toFixed(6) : "");
+    }
+  }, [amount0, amount1, reserves]);
 
   useEffect(() => {
     const fetchPools = async () => {
@@ -509,6 +527,7 @@ export default function UniswapPage() {
             <div>
               <label className="block font-medium">Amount {token0Symbol}:</label>
               <input
+                id="amount0"
                 type="text"
                 value={amount0}
                 onChange={e => setAmount0(e.target.value)}
@@ -518,6 +537,7 @@ export default function UniswapPage() {
             <div>
               <label className="block font-medium">Amount {token1Symbol}:</label>
               <input
+                id="amount1"
                 type="text"
                 value={amount1}
                 onChange={e => setAmount1(e.target.value)}

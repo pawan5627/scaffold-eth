@@ -16,8 +16,8 @@ contract Deploy is Script {
 
         // Create tokens
         ERC20Mock[12] memory tokens;
-        string[6] memory names = ["Alpha", "Beta", "Gamma", "Delta", "Epsilon", "Zeta"];
-        string[6] memory symbols = ["A", "B", "G", "D", "E", "Z"];
+        string[12] memory names = ["Bitcoin", "Ethereum", "Tether", "XRP", "BNB", "Solana","USDC","Dogecoin","Cardano","TRON","Chainlink","Sui"];
+        string[12] memory symbols = ["BTC","ETH", "USDT","XRP", "BNB","SOL", "USDC","DOGE", "ADA","TRX", "LINK","SUI"];
 
         for (uint i = 0; i < 6; i++) {
             tokens[2 * i] = new ERC20Mock(names[i], symbols[i], 18);
