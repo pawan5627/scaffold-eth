@@ -32,6 +32,10 @@ export default function UniswapPage() {
   const [swapDirection, setSwapDirection] = useState<"0to1" | "1to0">("0to1");
   const [reserves, setReserves] = useState<{ reserve0: bigint; reserve1: bigint } | null>(null);
   const [priceHistory, setPriceHistory] = useState<{ x: number; y: number }[]>([]);
+  const [nlInput, setNlInput] = useState("");
+  const [modelChoice, setModelChoice] = useState<"openai" | "oss">("openai");
+  const [ossModelUrl, setOssModelUrl] = useState("");
+  const [nlOutput, setNlOutput] = useState("");
 
   useEffect(() => {
     const fetchPools = async () => {
@@ -71,6 +75,25 @@ export default function UniswapPage() {
 
     fetchPools();
   }, []);
+  async function handleNaturalLanguageSubmit() {
+    try {
+      const res = await fetch("/api/llm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: nlInput,
+          model: modelChoice,
+          ossUrl: ossModelUrl,
+        }),
+      });
+
+      const data = await res.json();
+      setNlOutput(data.output || JSON.stringify(data));
+    } catch (err) {
+      console.error("NL processing error:", err);
+      setNlOutput("❌ Failed to process prompt.");
+    }
+  }
 
   const handleSelectPair = async (address: string) => {
     setSelectedPair(address);
@@ -244,6 +267,49 @@ export default function UniswapPage() {
   return (
     <div className="p-10">
       <h1 className="text-3xl font-bold mb-6">🦄 Uniswap v2 Web3 UI</h1>
+      <div className="mt-10 p-4 border rounded bg-gray-50">
+        <h2 className="text-xl font-semibold mb-2">💬 Natural Language Commands</h2>
+
+        <textarea
+          className="border p-2 w-full rounded mb-2"
+          rows={3}
+          placeholder='e.g. "swap 10 USDC for ETH"'
+          value={nlInput}
+          onChange={e => setNlInput(e.target.value)}
+        />
+
+        <div className="flex flex-col gap-2 mb-2">
+          <label className="font-medium">Choose Model:</label>
+          <select
+            className="border p-2 rounded"
+            value={modelChoice}
+            onChange={e => setModelChoice(e.target.value as "openai" | "oss")}
+          >
+            <option value="openai">OpenAI</option>
+            <option value="oss">Open Source (Custom URL)</option>
+          </select>
+
+          {modelChoice === "oss" && (
+            <input
+              className="border p-2 rounded"
+              placeholder="Enter OSS model endpoint URL"
+              value={ossModelUrl}
+              onChange={e => setOssModelUrl(e.target.value)}
+            />
+          )}
+        </div>
+
+        <button className="bg-purple-600 text-white px-4 py-2 rounded" onClick={handleNaturalLanguageSubmit}>
+          ✨ Submit
+        </button>
+
+        {nlOutput && (
+          <div className="mt-4 p-3 bg-white border rounded">
+            <strong>Model Response:</strong>
+            <pre className="whitespace-pre-wrap">{nlOutput}</pre>
+          </div>
+        )}
+      </div>
 
       <div className="space-y-4">
         <div>
