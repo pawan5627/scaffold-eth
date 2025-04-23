@@ -1,80 +1,123 @@
-# 🏗 Scaffold-ETH 2
+# 🦄 Uniswap v2 Web3 UI  
+**INFO7500 – Spring 2025**  
+Built by [Pawan Kumar](https://github.com/pawan5627)
 
-<h4 align="center">
-  <a href="https://docs.scaffoldeth.io">Documentation</a> |
-  <a href="https://scaffoldeth.io">Website</a>
-</h4>
+This project is a full-featured Web3 frontend built using [Scaffold-ETH v2](https://github.com/scaffold-eth/scaffold-eth-2) to interact with Uniswap v2 smart contracts, upgraded and extended for Homework 6.
 
-🧪 An open-source, up-to-date toolkit for building decentralized applications (dapps) on the Ethereum blockchain. It's designed to make it easier for developers to create and deploy smart contracts and build user interfaces that interact with those contracts.
+---
 
-⚙️ Built using NextJS, RainbowKit, Foundry, Wagmi, Viem, and Typescript.
+## ✨ Features
 
-- ✅ **Contract Hot Reload**: Your frontend auto-adapts to your smart contract as you edit it.
-- 🪝 **[Custom hooks](https://docs.scaffoldeth.io/hooks/)**: Collection of React hooks wrapper around [wagmi](https://wagmi.sh/) to simplify interactions with smart contracts with typescript autocompletion.
-- 🧱 [**Components**](https://docs.scaffoldeth.io/components/): Collection of common web3 components to quickly build your frontend.
-- 🔥 **Burner Wallet & Local Faucet**: Quickly test your application with a burner wallet and local faucet.
-- 🔐 **Integration with Wallet Providers**: Connect to different wallet providers and interact with the Ethereum network.
+- ✅ Pool selection from deployed UniswapV2Factory contract
+- ✅ Add and remove liquidity (mint/burn LP tokens)
+- ✅ Token swap (0 → 1 and 1 → 0 directions)
+- ✅ 📈 Live **reserve curve** chart (`x * y = k`)
+- ✅ 📊 **Swap execution price** history chart (based on Swap events)
+- ✅ Works locally with Anvil + Foundry
 
-![Debug Contracts tab](https://github.com/scaffold-eth/scaffold-eth-2/assets/55535804/b237af0c-5027-4849-a5c1-2e31495cccb1)
+---
 
-## Requirements
+## 🧠 Tech Stack
 
-Before you begin, you need to install the following tools:
+- ⚙️ Foundry (Solidity contracts + scripts)
+- 🌐 Next.js (frontend)
+- 🔌 Ethers.js v6
+- 🎨 Recharts (visualizations)
+- 🔁 Anvil (local dev chain)
+- 🚀 Vercel (optional deployment)
 
-- [Node (>= v20.18.3)](https://nodejs.org/en/download/)
-- Yarn ([v1](https://classic.yarnpkg.com/en/docs/install/) or [v2+](https://yarnpkg.com/getting-started/install))
-- [Git](https://git-scm.com/downloads)
+---
 
-## Quickstart
+## 📦 Getting Started
 
-To get started with Scaffold-ETH 2, follow the steps below:
+### Clone the project
 
-1. Install dependencies if it was skipped in CLI:
-
+```bash
+git clone https://github.com/pawan5627/scaffold-eth.git
+cd scaffold-eth
 ```
-cd my-dapp-example
+
+### Install frontend dependencies
+
+```bash
+cd packages/nextjs
 yarn install
 ```
 
-2. Run a local network in the first terminal:
+### Start Anvil locally
 
-```
-yarn chain
-```
-
-This command starts a local Ethereum network using Foundry. The network runs on your local machine and can be used for testing and development. You can customize the network configuration in `packages/foundry/foundry.toml`.
-
-3. On a second terminal, deploy the test contract:
-
-```
-yarn deploy
+```bash
+cd packages/foundry
+anvil
 ```
 
-This command deploys a test smart contract to the local network. The contract is located in `packages/foundry/contracts` and can be modified to suit your needs. The `yarn deploy` command uses the deploy script located in `packages/foundry/script` to deploy the contract to the network. You can also customize the deploy script.
+### Deploy contracts
 
-4. On a third terminal, start your NextJS app:
-
-```
-yarn start
+```bash
+forge script script/Deploy.s.sol:Deploy --rpc-url http://localhost:8545 --broadcast --private-key <ANVIL_PRIVATE_KEY>
 ```
 
-Visit your app on: `http://localhost:3000`. You can interact with your smart contract using the `Debug Contracts` page. You can tweak the app config in `packages/nextjs/scaffold.config.ts`.
+### Run frontend
 
-Run smart contract test with `yarn foundry:test`
+```bash
+cd packages/nextjs
+yarn dev
+```
 
-- Edit your smart contracts in `packages/foundry/contracts`
-- Edit your frontend homepage at `packages/nextjs/app/page.tsx`. For guidance on [routing](https://nextjs.org/docs/app/building-your-application/routing/defining-routes) and configuring [pages/layouts](https://nextjs.org/docs/app/building-your-application/routing/pages-and-layouts) checkout the Next.js documentation.
-- Edit your deployment scripts in `packages/foundry/script`
+App will be available at: [http://localhost:3000/uniswap](http://localhost:3000/uniswap)
 
+---
 
-## Documentation
+## 🧪 How to Test
 
-Visit our [docs](https://docs.scaffoldeth.io) to learn how to start building with Scaffold-ETH 2.
+- Use pool selector to choose a UniswapV2Pair
+- Add liquidity using `Add Liquidity` form
+- Try swapping token0 → token1 and vice versa
+- Remove liquidity using `Burn LP Tokens`
+- Charts will update automatically after each action
 
-To know more about its features, check out our [website](https://scaffoldeth.io).
+---
 
-## Contributing to Scaffold-ETH 2
+## 📁 Repository Structure
 
-We welcome contributions to Scaffold-ETH 2!
+```
+/packages
+  /foundry       ← Smart contracts (Uniswap V2)
+  /nextjs        ← Frontend (Scaffold-ETH v2 + UI)
+```
 
-Please see [CONTRIBUTING.MD](https://github.com/scaffold-eth/scaffold-eth-2/blob/main/CONTRIBUTING.md) for more information and guidelines for contributing to Scaffold-ETH 2.
+### `.gitignore` automatically excludes:
+
+- `node_modules`
+- `.next`
+- `.yarn`
+- `out/`
+- `.DS_Store`
+
+---
+
+## 📸 Demo Screenshots
+
+> Add screenshots here after deployment:
+> `packages/nextjs/public/demo.png`
+
+---
+
+## 🔗 Live URL (optional)
+
+Deployed on [Vercel](https://vercel.com/)  
+➡️ `https://uniswap-ui-yourname.vercel.app` *(update once deployed)*
+
+---
+
+## 👨‍💻 Author
+
+- **Pawan Kumar**
+- INFO7500 – Northeastern University
+- GitHub: [pawan5627](https://github.com/pawan5627)
+
+---
+
+## 📝 License
+
+MIT
