@@ -106,7 +106,7 @@ App will be available at: [http://localhost:3000/uniswap](http://localhost:3000/
 ## 🔗 Live URL (optional)
 
 Deployed on [Vercel](https://vercel.com/)  
-➡️ `https://uniswap-ui-yourname.vercel.app` *(update once deployed)*
+➡️ `https://scaffold-eth-nine.vercel.app/`
 
 ---
 
