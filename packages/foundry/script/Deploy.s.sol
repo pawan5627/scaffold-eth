@@ -19,9 +19,9 @@ contract Deploy is Script {
         string[12] memory names = ["Bitcoin", "Ethereum", "Tether", "XRP", "BNB", "Solana","USDC","Dogecoin","Cardano","TRON","Chainlink","Sui"];
         string[12] memory symbols = ["BTC","ETH", "USDT","XRP", "BNB","SOL", "USDC","DOGE", "ADA","TRX", "LINK","SUI"];
 
-        for (uint i = 0; i < 6; i++) {
-            tokens[2 * i] = new ERC20Mock(names[i], symbols[i], 18);
-            tokens[2 * i + 1] = new ERC20Mock(string.concat(names[i], "X"), string.concat(symbols[i], "X"), 18);
+        for (uint i = 0; i < 12; i++) {
+            tokens[i] = new ERC20Mock(names[i], symbols[i], 18);
+    
         }
         address testUser = address(0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266); // or your frontend wallet
 
